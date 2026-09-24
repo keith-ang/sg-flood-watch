@@ -1,6 +1,7 @@
 import { fetchFloodRecords, fetchRainfall, fetchForecast } from './api.js';
 import {
-  LEVELS, parseFloodAlerts, rainTotals, parseForecast, classifyStation, assessRisk, distanceKm, fmtKm, isWetForecast,
+  LEVELS, parseFloodAlerts, rainTotals, parseForecast, classifyStation, assessRisk, distanceKm, fmtKm,
+  describeForecast, decisiveReading, nearest, round1,
 } from './risk.js';
 import { applyDemo } from './demo.js';
 
@@ -83,11 +84,16 @@ function rainClusterIcon(cluster) {
   const worst = stations
     .map(classifyStation)
     .reduce((a, b) => (LEVELS[b].rank > LEVELS[a].rank ? b : a), 'low');
-  const maxMm = Math.max(...stations.map((s) => s.last5));
+  // Label with the reading that earned the colour, preferring the more immediate 5-min window.
+  const [top] = stations
+    .filter((s) => classifyStation(s) === worst)
+    .map(decisiveReading)
+    .sort((a, b) => (a.window === '5 min' ? 0 : 1) - (b.window === '5 min' ? 0 : 1) || b.mm - a.mm);
+  const unit = top.window === '5 min' ? 'mm/5m' : 'mm/30m';
   return L.divIcon({
     className: '',
-    html: `<div class="rain-cluster rain-${worst}">${Math.round(maxMm * 10) / 10}<small>mm</small></div>`,
-    iconSize: [38, 38],
+    html: `<div class="rain-cluster rain-${worst}">${round1(top.mm)}<small>${unit}</small></div>`,
+    iconSize: [44, 44],
   });
 }
 
@@ -96,9 +102,9 @@ function renderMap() {
 
   layers.forecast.clearLayers();
   // Only rain-bearing forecasts are drawn; fair/cloudy areas would just add clutter.
-  for (const a of (forecast?.areas ?? []).filter((a) => /rain|shower/i.test(a.forecast))) {
+  for (const a of (forecast?.areas ?? []).filter((a) => describeForecast(a.forecast).rain)) {
     L.marker([a.lat, a.lng], {
-      icon: L.divIcon({ className: 'fc-marker', html: forecastEmoji(a.forecast), iconSize: [22, 22] }),
+      icon: L.divIcon({ className: 'fc-marker', html: describeForecast(a.forecast).emoji, iconSize: [22, 22] }),
       keyboard: false,
       zIndexOffset: -1000, // keep forecast icons beneath rain readings
     })
@@ -144,17 +150,6 @@ function renderUserLayer() {
   }).addTo(layers.user);
 }
 
-function forecastEmoji(text) {
-  if (/thundery/i.test(text)) return '⛈️';
-  if (/heavy/i.test(text)) return '🌧️';
-  if (/rain|shower/i.test(text)) return '🌦️';
-  if (/cloudy/i.test(text)) return /partly/i.test(text) ? '⛅' : '☁️';
-  if (/haz|mist|fog/i.test(text)) return '🌫️';
-  if (/wind/i.test(text)) return '💨';
-  if (/night/i.test(text)) return '🌙';
-  return '☀️';
-}
-
 // ---------- Status card ----------
 
 function renderStatus() {
@@ -186,11 +181,9 @@ function renderStatus() {
     reasonsEl.append(li);
   }
   if (risk.level === 'low' && state.data.alerts.length) {
-    const closest = state.data.alerts
-      .map((a) => distanceKm(state.point, a))
-      .sort((a, b) => a - b)[0];
+    const closest = nearest(state.point, state.data.alerts);
     const li = document.createElement('li');
-    li.innerHTML = `<span class="muted">Nearest flood alert is ${fmtKm(closest)} away.</span>`;
+    li.innerHTML = `<span class="muted">Nearest flood alert is ${fmtKm(closest.distanceKm)} away.</span>`;
     reasonsEl.append(li);
   }
 }
@@ -201,7 +194,7 @@ function renderIsland() {
   const { alerts, stations, forecast } = state.data;
   const heavy = stations.filter((s) => classifyStation(s) === 'high').length;
   const raining = stations.filter((s) => s.last5 > 0).length;
-  const stormy = forecast?.areas.filter((a) => isWetForecast(a.forecast)).length ?? 0;
+  const stormy = forecast?.areas.filter((a) => describeForecast(a.forecast).severe).length ?? 0;
 
   const chips = [
     alerts.length

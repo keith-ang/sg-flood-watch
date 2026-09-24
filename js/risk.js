@@ -19,7 +19,23 @@ export const THRESHOLDS = {
   watch30min: 5,
 };
 
-const WET_FORECAST = /heavy|thundery/i;
+// The one place NEA forecast text is interpreted. First match wins.
+// `rain`: rain expected at all (drawn on the map). `severe`: heavy/thundery, counts towards Watch.
+const FORECAST_RULES = [
+  { match: /thundery/i, emoji: '⛈️', rain: true, severe: true },
+  { match: /heavy/i, emoji: '🌧️', rain: true, severe: true },
+  { match: /rain|shower/i, emoji: '🌦️', rain: true, severe: false },
+  { match: /partly cloudy/i, emoji: '⛅', rain: false, severe: false },
+  { match: /cloudy/i, emoji: '☁️', rain: false, severe: false },
+  { match: /haz|mist|fog/i, emoji: '🌫️', rain: false, severe: false },
+  { match: /wind/i, emoji: '💨', rain: false, severe: false },
+  { match: /night/i, emoji: '🌙', rain: false, severe: false },
+];
+const FAIR = { emoji: '☀️', rain: false, severe: false };
+
+export function describeForecast(text = '') {
+  return FORECAST_RULES.find((r) => r.match.test(text)) ?? FAIR;
+}
 
 export function distanceKm(a, b) {
   const R = 6371;
@@ -42,12 +58,13 @@ export function parseFloodAlerts(records = [], now = new Date()) {
 
   for (const record of records) {
     const item = record.item ?? {};
-    if (!item.readings?.length) continue;
 
+    // Check for Cancel first: a Cancel may carry no readings of its own.
     if (item.msgType === 'Cancel') {
       if (item.references) cancelRefs.push(item.references);
       continue;
     }
+    if (!item.readings?.length) continue;
 
     item.readings.forEach((r, i) => {
       if (r.expires && new Date(r.expires) < now) return;
@@ -128,15 +145,24 @@ export function parseForecast(data) {
   };
 }
 
-export function isWetForecast(text) {
-  return WET_FORECAST.test(text ?? '');
-}
 
 export function classifyStation({ last5, last30 }) {
   const t = THRESHOLDS;
   if (last5 >= t.high5min || last30 >= t.high30min) return 'high';
   if (last5 >= t.watch5min || last30 >= t.watch30min) return 'watch';
   return 'low';
+}
+
+/**
+ * The reading that decides a station's level, so a label can show the number behind the colour:
+ * the 30-min total when only that crossed a threshold, otherwise the 5-min value.
+ */
+export function decisiveReading(s) {
+  const t = THRESHOLDS;
+  const level = classifyStation(s);
+  const fiveMinDecides =
+    level === 'high' ? s.last5 >= t.high5min : level === 'watch' ? s.last5 >= t.watch5min : true;
+  return fiveMinDecides ? { mm: s.last5, window: '5 min' } : { mm: s.last30, window: '30 min' };
 }
 
 export function nearest(point, places) {
@@ -175,7 +201,7 @@ export function assessRisk(point, radiusKm, { alerts = [], stations = [], foreca
   }
 
   const area = forecast ? nearest(point, forecast.areas) : null;
-  if (area && isWetForecast(area.forecast)) {
+  if (area && describeForecast(area.forecast).severe) {
     reasons.push({
       level: 'watch',
       distanceKm: area.distanceKm,
@@ -192,6 +218,6 @@ export function fmtKm(km) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-function round1(n) {
+export function round1(n) {
   return Math.round(n * 10) / 10;
 }

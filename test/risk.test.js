@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFloodAlerts, rainTotals, parseForecast, classifyStation, assessRisk, distanceKm } from '../js/risk.js';
+import {
+  parseFloodAlerts, rainTotals, parseForecast, classifyStation, assessRisk, distanceKm, decisiveReading, describeForecast,
+} from '../js/risk.js';
 
 const NOW = new Date('2026-09-24T15:30:00+08:00');
 
@@ -45,6 +47,17 @@ test('parseFloodAlerts drops cancelled and expired alerts', () => {
     },
   ];
   assert.deepEqual(parseFloodAlerts(records, NOW).map((a) => a.id), ['C']);
+});
+
+test('parseFloodAlerts honours a Cancel that carries no readings', () => {
+  const records = [
+    alertRecord({ id: 'A' }),
+    {
+      datetime: '2026-09-24T15:20:00+08:00',
+      item: { msgType: 'Cancel', references: 'pub_joint_ops_ctr@pub.gov.sg, A, 2026-09-24T15:10:00+08:00', readings: [] },
+    },
+  ];
+  assert.deepEqual(parseFloodAlerts(records, NOW), []);
 });
 
 test('rainTotals sums the trailing 30 minutes per station', () => {
@@ -130,4 +143,22 @@ test('assessRisk: flooding beats everything, reasons sorted by severity', () => 
 test('distanceKm is roughly right across Singapore', () => {
   const d = distanceKm({ lat: 1.3521, lng: 103.8198 }, { lat: 1.357, lng: 103.987 });
   assert.ok(d > 18 && d < 19.5, `got ${d}`);
+});
+
+test('decisiveReading reports the window that set the level', () => {
+  assert.deepEqual(decisiveReading({ last5: 6, last30: 10 }), { mm: 6, window: '5 min' }); // high by 5-min
+  assert.deepEqual(decisiveReading({ last5: 0.4, last30: 30 }), { mm: 30, window: '30 min' }); // high by 30-min only
+  assert.deepEqual(decisiveReading({ last5: 1.2, last30: 3 }), { mm: 1.2, window: '5 min' }); // watch by 5-min
+  assert.deepEqual(decisiveReading({ last5: 0.2, last30: 6 }), { mm: 6, window: '30 min' }); // watch by 30-min only
+  assert.deepEqual(decisiveReading({ last5: 0.2, last30: 1 }), { mm: 0.2, window: '5 min' }); // low
+});
+
+test('describeForecast classifies NEA forecast text in one place', () => {
+  const d = (t) => describeForecast(t);
+  assert.equal(d('Heavy Thundery Showers with Gusty Winds').severe, true);
+  assert.equal(d('Heavy Rain').severe, true);
+  assert.deepEqual([d('Showers').rain, d('Showers').severe], [true, false]);
+  assert.deepEqual([d('Partly Cloudy (Day)').rain, d('Partly Cloudy (Day)').emoji], [false, '⛅']);
+  assert.equal(d('Fair (Day)').emoji, '☀️');
+  assert.equal(d('Windy').emoji, '💨');
 });

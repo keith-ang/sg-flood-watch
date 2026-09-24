@@ -158,6 +158,7 @@ footer a { color: var(--brand); }
   /* Halo keeps the number legible over the map or a forecast icon showing through. */
   text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff;
 }
+.rain-cluster { flex-direction: column; gap: 0; }
 .rain-cluster small { font-size: 8px; font-weight: 600; }
 .rain-high { --c: #e8710a; }
 .rain-watch { --c: #d4a106; }
