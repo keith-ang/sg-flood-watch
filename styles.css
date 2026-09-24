@@ -46,7 +46,7 @@ body {
   line-height: 1.45;
 }
 
-main, footer { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+main, footer { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
 
 .topbar {
   position: sticky; top: 0; z-index: 1000;
@@ -116,7 +116,8 @@ h2 { font-size: 1.05rem; margin: 0 0 8px; }
 .chip.error { border-color: var(--high); color: var(--high); }
 
 #map {
-  height: 55vh; min-height: 320px;
+  height: 72vh; min-height: 440px;
+  background: #bcd5f7; /* OneMap's sea colour, for areas outside its tile coverage */
   border-radius: var(--radius); border: 1px solid var(--border);
   z-index: 0;
 }

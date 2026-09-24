@@ -6,7 +6,6 @@ import {
 import { applyDemo } from './demo.js';
 
 const REFRESH_MS = 2 * 60 * 1000;
-const SG_CENTER = [1.3521, 103.8198];
 const DEMO = new URLSearchParams(location.search).has('demo');
 
 
@@ -23,23 +22,15 @@ const state = {
 
 // ---------- Map ----------
 
-const map = L.map('map', { zoomControl: true }).setView(SG_CENTER, 11);
-// Esri's minimal gray canvas keeps the data layers readable. Place-name labels sit in their
-// own layer above the base so they stay legible; light/dark follows the system theme.
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-const canvasUrl = (kind) =>
-  `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${darkQuery.matches ? 'Dark' : 'Light'}_Gray_${kind}/MapServer/tile/{z}/{y}/{x}`;
-const tileOpts = { minZoom: 11, maxZoom: 16 };
-const basemap = L.tileLayer(canvasUrl('Base'), {
-  ...tileOpts,
-  attribution: 'Tiles &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a>, HERE, Garmin, &copy; OpenStreetMap contributors',
+const SG_BOUNDS = [[1.21, 103.6], [1.47, 104.03]];
+const map = L.map('map', { zoomControl: true }).fitBounds(SG_BOUNDS);
+// OneMap (Singapore Land Authority) "Original" style: soft colour, Singapore-focused, no key needed.
+L.tileLayer('https://www.onemap.gov.sg/maps/tiles/Original/{z}/{x}/{y}.png', {
+  minZoom: 11,
+  maxZoom: 19,
+  attribution: '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:14px;width:14px;vertical-align:middle"> <a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener">OneMap</a> &copy; contributors | <a href="https://www.sla.gov.sg/" target="_blank" rel="noopener">Singapore Land Authority</a>',
 }).addTo(map);
-const labels = L.tileLayer(canvasUrl('Reference'), { ...tileOpts, pane: 'shadowPane' }).addTo(map);
 map.setMaxBounds([[1.144, 103.535], [1.494, 104.1]]);
-darkQuery.addEventListener('change', () => {
-  basemap.setUrl(canvasUrl('Base'));
-  labels.setUrl(canvasUrl('Reference'));
-});
 
 const layers = {
   floods: L.layerGroup().addTo(map),
