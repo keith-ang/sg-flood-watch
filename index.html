@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SG Flood Watch</title>
+  <meta name="description" content="Live flood alerts and flood risk near you in Singapore, from PUB and NEA data.">
+  <meta name="theme-color" content="#0b5cab">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>🌧️ SG Flood Watch</h1>
+    <button id="refresh" class="icon-btn" aria-label="Refresh now" title="Refresh now">↻</button>
+  </header>
+
+  <div id="demo-banner" class="demo-banner" hidden>
+    ⚠️ Demo mode: the rain and flood alerts shown are fake. <a href="./">Switch to live data</a>
+  </div>
+
+  <main>
+    <section id="status" class="status level-unknown" aria-live="polite">
+      <div class="status-head">
+        <span id="status-icon" class="status-icon" aria-hidden="true">📍</span>
+        <div>
+          <h2 id="status-title">Check flood risk near you</h2>
+          <p id="status-detail" class="muted">Share your location, or tap the map to pick a spot.</p>
+        </div>
+      </div>
+      <ul id="status-reasons" class="reasons"></ul>
+      <div class="status-actions">
+        <button id="locate" class="btn">📍 Use my location</button>
+        <label class="radius">Within
+          <select id="radius">
+            <option value="2">2 km</option>
+            <option value="3" selected>3 km</option>
+            <option value="5">5 km</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section id="island" class="island" aria-label="Island-wide summary"></section>
+
+    <div id="map" role="application" aria-label="Map of flood alerts, rainfall and forecast"></div>
+    <p class="hint muted">Tap anywhere on the map to check that spot.</p>
+
+    <section class="card">
+      <h2>Active flood alerts</h2>
+      <ul id="alerts" class="alerts"></ul>
+    </section>
+
+    <section class="card">
+      <h2>How risk is worked out</h2>
+      <ul class="legend">
+        <li><span class="dot level-flooding"></span><span><b>Flooding</b>: PUB has reported a flash flood within your radius.</span></li>
+        <li><span class="dot level-high"></span><span><b>High risk</b>: a rain station within your radius has had a cloudburst, ≥ 5 mm in 5 min (≈ 60 mm/h) or ≥ 25 mm in 30 min (≈ 50 mm/h). Most reported floods in Singapore follow rain this intense.</span></li>
+        <li><span class="dot level-watch"></span><span><b>Watch</b>: heavy rain nearby by the Meteorological Service's scale (≥ 10 mm/h: ≥ 1 mm in 5 min or ≥ 5 mm in 30 min), or the 2-hour forecast for your area is heavy or thundery showers.</span></li>
+        <li><span class="dot level-low"></span><span><b>Low</b>: none of the above.</span></li>
+      </ul>
+      <p class="muted small">Flood alert circles show PUB's broadcast radius, not the size of the flood.</p>
+    </section>
+  </main>
+
+  <footer class="muted small">
+    <p>Data: PUB flood alerts, NEA rainfall and 2-hour forecast via <a href="https://data.gov.sg" target="_blank" rel="noopener">data.gov.sg</a>. Refreshes every 2 minutes. <span id="updated"></span></p>
+    <p>Not an official warning service. For PUB's own alerts, subscribe via the myENV app or PUB's Telegram channel.</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
